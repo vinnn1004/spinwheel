@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🎡 Spin Wheel Es Krim</title>
+<style>
+  :root { --accent:#ffd700; }
+  body {
+    font-family:Inter,Arial,sans-serif;
+    background:linear-gradient(180deg,#2b0b0b,#3f0e0e);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    min-height:100vh;margin:0;
+  }
+  .container{width:1000px;max-width:95vw;background:#581212;border-radius:28px;padding:24px;
+             box-shadow:0 10px 40px rgba(0,0,0,.6);}
+  h1{text-align:center;margin:0 0 16px;font-size:40px}
+  .flex{display:flex;flex-wrap:wrap;gap:24px;justify-content:center}
+  canvas{width:520px;height:520px;border-radius:50%;background:#fff;
+         box-shadow:0 6px 20px rgba(0,0,0,.5);transition:transform .5s ease-out;}
+  .pointer{
+    position:absolute;left:50%;transform:translateX(-50%);
+    bottom:-22px;width:0;height:0;
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-top:30px solid var(--accent);
+  }
+  .panel{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .btn{background:var(--accent);border:none;padding:10px 18px;border-radius:10px;font-weight:700;
+       cursor:pointer;color:#000}
+  input{padding:8px 10px;border:none;border-radius:8px;width:240px;text-align:center}
+  ul{list-style:none;padding:0;margin:0;width:240px;max-height:150px;overflow:auto}
+  li{background:rgba(255,255,255,0.1);margin:3px 0;padding:6px 8px;border-radius:8px;
+     display:flex;justify-content:space-between;align-items:center}
+  .small-btn{background:#ffd700;border:none;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:12px}
+  footer{text-align:center;margin-top:14px;font-size:13px;opacity:.85}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎡 Spin Wheel Es Krim</h1>
+  <div class="flex">
+    <div style="position:relative">
+      <canvas id="spinCanvas" width="520" height="520"></canvas>
+      <div class="pointer"></div>
+    </div>
+
+    <div class="panel">
+      <input id="playerName" placeholder="Nama pemain">
+      <button class="btn" id="addPlayer">Tambah Pemain</button>
+      <ul id="players"></ul>
+      <button class="btn" id="spinBtn">SPIN</button>
+      <div id="result" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <footer>Spin Wheel Es Krim • Powered by Admin</footer>
+</div>
+
+<audio id="tickSound" src="assets/tick.wav"></audio>
+<audio id="winSound" src="assets/win.wav"></audio>
+
+<script>
+const canvas=document.getElementById('spinCanvas');
+const ctx=canvas.getContext('2d');
+const cx=canvas.width/2,cy=canvas.height/2,radius=Math.min(cx,cy)-8;
+const tick=document.getElementById('tickSound');
+const win=document.getElementById('winSound');
+
+let gifts=JSON.parse(localStorage.getItem('iceGifts')||'[]');
+if(gifts.length===0){
+  gifts=[{label:"Belum Ada Hadiah",img:"assets/placeholder.png"}];
+}
+
+let players=[],currentPlayer=null,isSpinning=false,currentRotation=0;
+
+function drawWheel(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const segCount=gifts.length,degPer=360/segCount;
+  ctx.save();ctx.translate(cx,cy);
+  for(let i=0;i<segCount;i++){
+    const start=(i*degPer-90)*Math.PI/180;
+    const end=((i+1)*degPer-90)*Math.PI/180;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,radius,start,end);ctx.closePath();
+    ctx.fillStyle=i%2?'#311010':'#f7e7d7';ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.stroke();
+    ctx.save();ctx.rotate((start+end)/2);
+    const img=new Image();img.src=gifts[i].img;
+    img.onload=(()=>{ return function(){ try{ ctx.drawImage(img,radius*0.45,-25,50,50);}catch(e){} }; })();
+    ctx.fillStyle=i%2?'#fff':'#2b0b0b';
+    ctx.font='bold 14px Arial';ctx.textAlign='center';
+    ctx.fillText(gifts[i].label,0,75);
+    ctx.restore();
+  }
+  ctx.beginPath();ctx.fillStyle='#8b1f1f';ctx.arc(0,0,46,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.fillText('SPIN',0,6);
+  ctx.restore();
+}
+drawWheel();
+
+const playerInput=document.getElementById('playerName');
+const playerList=document.getElementById('players');
+document.getElementById('addPlayer').onclick=()=>{
+  const name=playerInput.value.trim();if(!name)return;
+  players.push({name,prizes:[]});playerInput.value='';renderPlayers();
+};
+function renderPlayers(){
+  playerList.innerHTML='';
+  players.forEach((p,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<span>${p.name}</span><button class="small-btn" data-i="${i}">Pilih</button>`;
+    playerList.appendChild(li);
+  });
+}
+playerList.onclick=e=>{
+  if(e.target.matches('button[data-i]')){
+    const idx=e.target.dataset.i;currentPlayer=players[idx];
+    document.querySelectorAll('#players li').forEach(li=>li.style.background='rgba(255,255,255,0.1)');
+    e.target.closest('li').style.background='rgba(255,255,255,0.25)';
+    result.textContent=`Giliran: ${currentPlayer.name}`;
+  }
+};
+
+function easeOutCubic(t){return 1-Math.pow(1-t,3);}
+const spinBtn=document.getElementById('spinBtn');
+const result=document.getElementById('result');
+spinBtn.onclick=()=>{
+  if(!currentPlayer){result.textContent='Pilih pemain dahulu!';return;}
+  if(isSpinning)return;
+  const segCount=gifts.length,degPer=360/segCount;
+  isSpinning=true;result.textContent=`${currentPlayer.name} sedang memutar...`;
+  const rounds=Math.floor(Math.random()*3)+4;
+  const targetIndex=Math.floor(Math.random()*segCount);
+  const targetAngle=(360-(targetIndex*degPer)-degPer/2)%360;
+  const totalAngle=rounds*360+targetAngle;
+  const duration=4000+Math.random()*1500;
+  const start=performance.now(),startAngle=currentRotation;
+  let lastTick=0;
+  function anim(now){
+    const t=Math.min((now-start)/duration,1);
+    const eased=easeOutCubic(t);
+    const angle=startAngle+(totalAngle-startAngle)*eased;
+    setRotation(angle);
+    if(angle-lastTick>10){try{tick.currentTime=0;tick.play();}catch(e){};lastTick=angle;}
+    if(t<1)requestAnimationFrame(anim);
+    else{
+      isSpinning=false;
+      const landed=(segCount-Math.floor(((angle%360)/degPer)))%segCount;
+      const prize=gifts[landed];
+      currentPlayer.prizes.push(prize.label);
+      result.innerHTML=`${currentPlayer.name} mendapatkan: <b>${prize.label}</b>`;
+      try{win.play();}catch(e){}
+      renderPlayers();
+    }
+  }
+  requestAnimationFrame(anim);
+};
+function setRotation(deg){currentRotation=deg;canvas.style.transform=`rotate(${deg}deg)`;}
+</script>
+</body>
+</html>

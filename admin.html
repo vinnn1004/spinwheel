@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Spin Wheel</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;background:#2b0b0b;color:#fff;text-align:center;padding:40px;}
+.container{max-width:600px;margin:auto;background:#581212;padding:20px;border-radius:18px;}
+input,button{margin:6px;padding:8px 10px;border:none;border-radius:8px;}
+button{background:#ffd700;font-weight:700;cursor:pointer;}
+ul{list-style:none;padding:0;}
+li{background:rgba(255,255,255,0.1);margin:4px 0;padding:6px 10px;border-radius:8px;
+   display:flex;justify-content:space-between;align-items:center}
+.hidden{display:none;}
+.preview{display:flex;gap:8px;align-items:center}
+.preview img{width:50px;height:50px;object-fit:cover;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🧑‍💼 Admin Panel</h1>
+  <div id="loginBox">
+    <p>Masukkan Password Admin:</p>
+    <input type="password" id="pass" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div id="panel" class="hidden">
+    <h2>Edit Hadiah 🍦</h2>
+    <input id="giftName" placeholder="Nama hadiah"><br>
+    <input type="file" id="giftFile" accept="image/*"><br>
+    <div class="preview" id="previewBox"></div>
+    <button onclick="addGift()">Tambah</button>
+    <ul id="giftList"></ul>
+    <button onclick="saveGifts()">💾 Simpan ke Browser</button>
+  </div>
+</div>
+
+<script>
+let gifts=JSON.parse(localStorage.getItem('iceGifts')||'[]');
+
+function render(){
+  const list=document.getElementById('giftList');
+  list.innerHTML='';
+  gifts.forEach((g,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<div style="display:flex;gap:8px;align-items:center"><img src="${g.img}" width="48" height="48" style="border-radius:6px" alt=""><div><strong>${g.label}</strong></div></div><div><button onclick="removeGift(${i})">✖</button></div>`;
+    list.appendChild(li);
+  });
+}
+function addGift(){
+  const name=document.getElementById('giftName').value.trim();
+  const file=document.getElementById('giftFile').files[0];
+  if(!name)return alert('Nama hadiah wajib diisi!');
+  if(file){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      gifts.push({label:name,img:e.target.result});
+      render();
+    };
+    reader.readAsDataURL(file);
+  }else{
+    gifts.push({label:name,img:'assets/placeholder.png'});
+    render();
+  }
+  document.getElementById('giftName').value='';
+  document.getElementById('giftFile').value='';
+  document.getElementById('previewBox').innerHTML='';
+}
+function removeGift(i){gifts.splice(i,1);render();}
+function saveGifts(){
+  localStorage.setItem('iceGifts',JSON.stringify(gifts));
+  alert('Hadiah tersimpan! Sekarang pengguna bisa spin.');
+}
+function login(){
+  const p=document.getElementById('pass').value;
+  if(p==='admin123'){
+    document.getElementById('loginBox').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+    render();
+  }else alert('Password salah!');
+}
+document.getElementById('giftFile').onchange=function(e){
+  const f=e.target.files[0];
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=function(evt){
+    document.getElementById('previewBox').innerHTML='<img src="'+evt.target.result+'">';
+  };
+  r.readAsDataURL(f);
+};
+</script>
+</body>
+</html>
